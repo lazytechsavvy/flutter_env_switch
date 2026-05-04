@@ -1,0 +1,4 @@
+# Files that should not be included in the published package.
+prompt.txt
+coverage/
+lib/utils/

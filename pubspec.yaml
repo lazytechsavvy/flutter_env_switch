@@ -1,0 +1,25 @@
+name: flutter_env_switch
+description: >
+  A lightweight, type-safe runtime environment & config switcher for Flutter apps.
+  Supports multi-.env file loading, enum-driven switching, persistence, a gesture-triggered
+  debug panel, and optional Dio integration.
+version: 1.1.0
+homepage: https://github.com/subhajitkar/flutter_env_switch
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  dio: ^5.0.0
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.3.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  # No package-level assets; host app declares its own .env assets

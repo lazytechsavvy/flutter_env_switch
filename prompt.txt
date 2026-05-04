@@ -1,0 +1,399 @@
+🚀 Package Codename: envify (you can rename)
+
+A lightweight, type-safe runtime environment & config switcher for Flutter apps.
+
+⸻
+
+🧠 1. Core Philosophy
+
+* Zero unnecessary abstraction
+* Enum-driven (no string keys for env selection)
+* Runtime switching with persistence
+* Minimal setup (≤ 10 lines)
+* Production-safe by default
+
+⸻
+
+🎯 2. Scope (MVP)
+
+MUST HAVE:
+
+* Multi .env file loading (assets)
+* Enum-based environment switching
+* Runtime switching
+* Persistent selection
+* Simple debug panel (gesture-triggered)
+* Dio integration support (optional helper)
+* Soft app restart support
+
+MUST NOT (for now):
+
+* Remote config sync
+* Encryption layer
+* Over-engineered plugin system
+
+⸻
+
+🏗️ 3. Public API Design (FINAL)
+
+3.1 Enum (User-defined)
+
+enum Environment {
+  future,
+  staging,
+  production,
+}
+
+⸻
+
+3.2 Initialization
+
+await Env.init(
+  defaultEnv: Environment.production,
+  configs: {
+    Environment.future: 'assets/env/.env.future',
+    Environment.staging: 'assets/env/.env.staging',
+    Environment.production: 'assets/env/.env.production',
+  },
+);
+
+⸻
+
+3.3 Accessors
+
+Env.get('BASE_URL');
+Env.getInt('TIMEOUT');
+Env.getBool('FEATURE_X');
+
+Optional sugar:
+
+Env.baseUrl
+
+⸻
+
+3.4 Switching
+
+Env.switchTo(Environment.future, restart: true);
+
+⸻
+
+3.5 Current State
+
+Env.current
+
+⸻
+
+3.6 Widget Wrapper
+
+EnvSwitcher(
+  enabled: !kReleaseMode,
+  child: MyApp(),
+)
+
+⸻
+
+🧩 4. Internal Architecture
+
+lib/
+ ├── env.dart                 (public API facade)
+ ├── core/
+ │    ├── env_manager.dart
+ │    ├── env_loader.dart
+ │    ├── env_parser.dart
+ │    ├── env_store.dart
+ │
+ ├── ui/
+ │    ├── env_switcher_widget.dart
+ │    ├── debug_panel.dart
+ │    ├── gesture_detector.dart
+ │
+ ├── integrations/
+ │    ├── dio_interceptor.dart
+ │
+ ├── utils/
+ │    ├── app_restarter.dart
+ │
+ └── models/
+      ├── env_config.dart
+
+⸻
+
+⚙️ 5. Core Components
+
+⸻
+
+5.1 EnvConfig
+
+class EnvConfig<E extends Enum> {
+  final E env;
+  final String assetPath;
+  const EnvConfig({
+    required this.env,
+    required this.assetPath,
+  });
+}
+
+⸻
+
+5.2 EnvManager (Singleton)
+
+Responsibilities:
+
+* load all envs
+* hold current env
+* notify listeners
+* persist selection
+
+class EnvManager<E extends Enum> {
+  static late EnvManager instance;
+  late Map<E, Map<String, String>> _envs;
+  late E _current;
+  final ValueNotifier<E> currentNotifier = ValueNotifier(null);
+}
+
+⸻
+
+5.3 EnvLoader
+
+Loads asset files:
+
+Future<Map<String, String>> load(String path);
+
+Uses:
+
+rootBundle.loadString(path);
+
+⸻
+
+5.4 EnvParser
+
+Simple .env parser:
+
+Rules:
+
+* ignore comments (#)
+* trim whitespace
+* support KEY=VALUE
+* support = inside values
+
+⸻
+
+5.5 EnvStore
+
+Persistence layer:
+
+Use:
+
+SharedPreferences
+
+Key:
+
+'envify_selected_env'
+
+⸻
+
+5.6 Env (Public Facade)
+
+class Env {
+  static Future<void> init({...});
+  static String get(String key);
+  static int getInt(String key);
+  static bool getBool(String key);
+  static void switchTo(Environment env, {bool restart = false});
+  static Environment get current;
+}
+
+⸻
+
+🔁 6. Switching Flow
+
+User action →
+Env.switchTo →
+update _current →
+persist →
+notify listeners →
+(optional restart)
+
+⸻
+
+🔄 7. App Restart Strategy
+
+Implement:
+
+class AppRestarter extends StatefulWidget
+
+Use:
+
+(key: UniqueKey())
+
+Expose:
+
+AppRestarter.restart(context);
+
+⸻
+
+🎨 8. Debug Panel
+
+Trigger:
+
+* long press anywhere (default)
+
+UI:
+
+* Bottom sheet
+
+Content:
+
+* List of environments (enum values)
+* Highlight current
+* Tap to switch
+
+Optional:
+
+* restart toggle
+
+⸻
+
+🔐 9. Safety Rules
+
+* Debug panel disabled in release by default
+* No secrets handling responsibility
+* Only public config expected
+
+⸻
+
+🔌 10. Dio Integration (Optional Helper)
+
+class EnvDioInterceptor extends Interceptor {
+  @override
+  void onRequest(options, handler) {
+    options.baseUrl = Env.get('BASE_URL');
+    return handler.next(options);
+  }
+}
+
+⸻
+
+🧪 11. Testing Requirements
+
+Unit tests:
+
+* env parsing
+* switching logic
+* persistence
+
+Widget tests:
+
+* debug panel
+* switching UI
+
+⸻
+
+📦 12. Pub.dev Readiness Checklist
+
+* ✅ strong README
+* ✅ example app
+* ✅ API docs
+* ✅ 90%+ test coverage
+* ✅ lint rules (very_good_analysis or similar)
+* ✅ no breaking analyzer warnings
+
+⸻
+
+📘 13. README Structure
+
+1. Intro (problem + solution)
+2. Quick start (copy-paste ready)
+3. Usage
+4. Debug panel demo
+5. Advanced usage (dio, restart)
+6. FAQ
+
+⸻
+
+🧠 14. AI Coding Agent Instructions (IMPORTANT)
+
+Use this section directly in your AI tool 👇
+
+⸻
+
+👉 SYSTEM PROMPT FOR AI AGENT
+
+Build a Flutter package named envify with the following requirements:
+
+Goals:
+
+* production-grade
+* clean architecture
+* minimal API surface
+* high performance
+* null-safe
+
+⸻
+
+Rules:
+
+* use Dart best practices
+* avoid overengineering
+* prefer composition over inheritance
+* keep API ergonomic
+* no global mutable state outside controlled singleton
+
+⸻
+
+Functional Requirements:
+
+1. Load multiple .env files from assets
+2. Parse into Map<String, String>
+3. Support enum-based environment selection
+4. Persist selected environment
+5. Provide static access via Env class
+6. Allow runtime switching
+7. Provide optional app restart
+8. Provide debug panel UI
+
+⸻
+
+Non-Functional:
+
+* must not block UI thread
+* must be memory efficient
+* must handle missing keys gracefully
+
+⸻
+
+Code Quality:
+
+* split into multiple files (no god file)
+* document all public APIs
+* add inline comments for complex logic
+
+⸻
+
+Deliverables:
+
+1. full package code
+2. example Flutter app
+3. README.md
+4. test suite
+
+⸻
+
+🧭 15. Future Extensions (Do NOT build now)
+
+* remote config sync
+* feature flags dashboard
+* analytics
+* CI integration
+
+⸻
+
+🧠 Final Thought
+
+If this is built properly:
+
+This won’t just be another Flutter package.
+
+It becomes:
+
+a standard runtime config layer for serious Flutter apps
