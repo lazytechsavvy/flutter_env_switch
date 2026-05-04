@@ -1,3 +1,17 @@
+## 1.1.3
+
+* Updated `CHANGELOG.md` to include entries for versions `1.1.2` and `1.1.3`.
+
+## 1.1.2
+
+* Added `CHANGELOG.md` entry for version `1.1.1`.
+* Replaced deprecated `Color.withOpacity` calls with `Color.withValues(alpha:)` across
+  all UI files to resolve pana static-analysis warnings.
+* Corrected `repository` URL in `pubspec.yaml` to
+  `https://github.com/lazytechsavvy/flutter_env_switch`.
+* Bumped minimum Flutter SDK to `>=3.27.0` and Dart SDK to `>=3.3.0` to ensure
+  `Color.withValues` is available in the target environment.
+
 ## 1.1.1
 
 * Fixed deprecated `Color.withOpacity` calls — replaced with `Color.withValues(alpha:)`

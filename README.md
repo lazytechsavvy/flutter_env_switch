@@ -89,7 +89,7 @@ Add `flutter_env_switch` to your app's `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_env_switch: ^1.1.1
+  flutter_env_switch: ^1.1.3
 ```
 
 `shared_preferences` is a transitive dependency — no separate entry needed. `dio` is also included for the optional Dio interceptor.
