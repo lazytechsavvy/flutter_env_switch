@@ -1,3 +1,11 @@
+## 1.1.1
+
+* Fixed deprecated `Color.withOpacity` calls — replaced with `Color.withValues(alpha:)`
+  throughout the UI layer to eliminate pana static-analysis warnings.
+* Bumped minimum Flutter SDK to `>=3.27.0` and Dart SDK to `>=3.3.0` to align with
+  the `Color.withValues` API availability.
+* Updated `repository` URL to the correct GitHub handle.
+
 ## 1.1.0
 
 * **Tap-count trigger** — `EnvSwitcher` gains `triggerMode` (`EnvTriggerMode.longPress` |

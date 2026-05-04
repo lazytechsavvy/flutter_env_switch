@@ -1,7 +1,7 @@
 name: flutter_env_switch
 description: Type-safe runtime environment switcher for Flutter. Load .env files, switch configs at runtime, lock envs, and debug with a built-in panel.
 version: 1.1.1
-repository: https://github.com/subhajitkar/flutter_env_switch
+repository: https://github.com/lazytechsavvy/flutter_env_switch
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
