@@ -107,7 +107,7 @@ class _DefaultEnvBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: colorScheme.inverseSurface.withOpacity(0.75),
+          color: colorScheme.inverseSurface.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(

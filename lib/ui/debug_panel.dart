@@ -111,7 +111,7 @@ class _EnvDebugPanelState<E extends Enum>
               height: 4,
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -208,7 +208,7 @@ class _EnvDebugPanelState<E extends Enum>
                   children: _manager.allValues.map((env) {
                     final isActive = env == current;
                     final textColor = isLocked && !isActive
-                        ? colorScheme.onSurface.withOpacity(0.38)
+                        ? colorScheme.onSurface.withValues(alpha: 0.38)
                         : isActive
                             ? colorScheme.primary
                             : colorScheme.onSurface;
@@ -226,7 +226,8 @@ class _EnvDebugPanelState<E extends Enum>
                           color: isActive
                               ? colorScheme.primary
                               : isLocked
-                                  ? colorScheme.outlineVariant.withOpacity(0.4)
+                                  ? colorScheme.outlineVariant
+                                      .withValues(alpha: 0.4)
                                   : colorScheme.outlineVariant,
                         ),
                       ),
@@ -324,7 +325,7 @@ class _EnvDebugPanelState<E extends Enum>
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFamily: 'monospace',
                 color: sensitive && !isRevealed
-                    ? colorScheme.onSurface.withOpacity(0.4)
+                    ? colorScheme.onSurface.withValues(alpha: 0.4)
                     : colorScheme.onSurfaceVariant,
               ),
               maxLines: 1,
