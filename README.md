@@ -70,7 +70,7 @@ Most Flutter apps tie environment configuration to compile-time flags (`--dart-d
 | **Multi-.env loading** | Load all environment configs in parallel at startup |
 | **Enum-driven** | Your own enum identifies environments — no magic strings |
 | **Runtime switching** | Switch the active env without rebuilding the app |
-| **Persistent selection** | The last chosen environment survives app restarts |
+| **Persistent selection** | The last chosen environment survives app restarts (configurable) |
 | **Gesture debug panel** | Long-press **or** tap-count to open a bottom-sheet switcher |
 | **On-switch callback** | `onSwitched` fires after every successful environment switch |
 | **Locked environments** | Prevent switching away from sensitive envs (e.g. production) |
@@ -89,7 +89,7 @@ Add `flutter_env_switch` to your app's `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_env_switch: ^1.1.4
+  flutter_env_switch: ^1.1.5
 ```
 
 `shared_preferences` is a transitive dependency — no separate entry needed. `dio` is also included for the optional Dio interceptor.
@@ -175,6 +175,8 @@ Future<void> main() async {
 ```
 
 > **`defaultEnv`** is used only when no previously persisted selection exists. Production release builds always start with their correct environment regardless of what a tester last chose on their device.
+>
+> Set **`persistSelection: false`** to always start from `defaultEnv` on every launch — useful for CI/demo environments that should never remember a previous switch.
 
 ---
 
@@ -1074,7 +1076,7 @@ Yes. Just call `Env.init`, `Env.get`, and `Env.switchTo` directly. `AppRestarter
 
 **Does switching persist across hot restarts?**
 
-Yes. The selected environment is stored in `SharedPreferences` and restored on the next `Env.init` call.
+Yes, when `persistSelection: true` (the default). The selected environment is stored in `SharedPreferences` and restored on the next `Env.init` call. Set `persistSelection: false` in `Env.init` to always start from `defaultEnv` each launch — the debug panel's "Persist env selection" toggle lets testers change this at runtime.
 
 ---
 
@@ -1131,9 +1133,11 @@ final json = jsonEncode(data); // for export/logging
 | `Env.getOrElse(key, fallback)` | `String` — returns `fallback` if key absent; never throws |
 | `Env.current` | `Enum` — the active environment enum value |
 | `Env.isLocked` | `bool` — `true` when the active env is in `lockedEnvironments` |
+| `Env.persistSelection` | `bool` — `true` when env selection is saved across sessions |
+| `Env.setPersistSelection(bool)` | `Future<void>` — change persist mode at runtime |
 | `Env.currentEnvData` | `Map<String, String>` — all key/value pairs for the active env |
 | `Env.currentNotifier` | `ValueNotifier<dynamic>` — emits on every switch |
-| `Env.switchTo(env)` | `Future<void>` — switches and persists; throws if locked or unregistered |
+| `Env.switchTo(env)` | `Future<void>` — switches (persists if `persistSelection` is true); throws if locked or unregistered |
 
 ### `Env.init` parameters
 
@@ -1142,6 +1146,7 @@ final json = jsonEncode(data); // for export/logging
 | `defaultEnv` | `E` | ✓ | Environment used on first launch |
 | `configs` | `Map<E, String>` | ✓ | Maps each enum value to its asset path |
 | `lockedEnvironments` | `Set<E>?` | — | Envs from which switching is forbidden |
+| `persistSelection` | `bool` | — | Save and restore env across sessions (default `true`); `false` always starts from `defaultEnv` |
 | `loader` | `EnvLoader?` | — | Override for testing |
 | `store` | `EnvStore?` | — | Override for testing |
 
@@ -1156,6 +1161,8 @@ final json = jsonEncode(data); // for export/logging
 | `manager.current` | `E` — active env (typed) |
 | `manager.allValues` | `List<E>` — all registered envs |
 | `manager.isCurrentLocked` | `bool` |
+| `manager.persistSelection` | `bool` — `true` when selection is saved across sessions |
+| `manager.setPersistSelection(bool)` | `Future<void>` — change persist mode at runtime |
 | `manager.currentEnvData` | `Map<String, String>` — all key/value pairs for the active env |
 | `manager.currentNotifier` | `ValueNotifier<E>` — typed notifier |
 | `manager.get(key)` | Delegates to `Env.get` |

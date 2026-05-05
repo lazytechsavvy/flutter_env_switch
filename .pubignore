@@ -2,3 +2,5 @@
 prompt.txt
 coverage/
 lib/utils/
+build/
+.dart_tool/

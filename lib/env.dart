@@ -52,12 +52,17 @@ abstract final class Env {
   ///   is forbidden. When the active environment is in this set, `switchTo`
   ///   throws `EnvSwitchLockedException` and the debug panel is rendered in
   ///   a locked (non-interactive) state. Defaults to no lock.
+  /// - [persistSelection]: whether the active environment is saved to and
+  ///   restored from `SharedPreferences` across sessions. When `false`, the
+  ///   app always starts from [defaultEnv] and switches are not written to the
+  ///   store. Defaults to `true`.
   ///
   /// Must be `await`ed before calling any other [Env] method.
   static Future<void> init<E extends Enum>({
     required E defaultEnv,
     required Map<E, String> configs,
     Set<E>? lockedEnvironments,
+    bool persistSelection = true,
     @visibleForTesting EnvLoader? loader,
     @visibleForTesting EnvStore? store,
   }) async {
@@ -65,6 +70,7 @@ abstract final class Env {
       defaultEnv: defaultEnv,
       configs: configs,
       lockedEnvironments: lockedEnvironments,
+      persistSelection: persistSelection,
       loader: loader,
       store: store,
     );
@@ -117,6 +123,24 @@ abstract final class Env {
   /// }
   /// ```
   static bool get isLocked => EnvManager.instance.isCurrentLocked;
+
+  /// Whether the active environment is saved to and restored from
+  /// `SharedPreferences` across sessions.
+  ///
+  /// Reflects the `persistSelection` value passed to [init], unless it has
+  /// been overridden at runtime via [setPersistSelection].
+  static bool get persistSelection => EnvManager.instance.persistSelection;
+
+  /// Changes the persist mode at runtime.
+  ///
+  /// - `true`: saves the current environment immediately so the next launch
+  ///   restores it.
+  /// - `false`: clears the stored selection; the next launch always starts
+  ///   from `defaultEnv` and in-session switches are not written to the store.
+  ///
+  /// Can also be toggled interactively via the debug panel.
+  static Future<void> setPersistSelection(bool persist) =>
+      EnvManager.instance.setPersistSelection(persist);
 
   /// All key/value pairs loaded for the currently active environment.
   ///

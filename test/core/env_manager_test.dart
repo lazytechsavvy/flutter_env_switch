@@ -218,6 +218,25 @@ void main() {
       await manager.switchTo(_Env.dev);
       expect(manager.current, _Env.dev);
     });
+
+    test('does not write to store when persistSelection is false', () async {
+      EnvManager.reset();
+      SharedPreferences.setMockInitialValues({});
+      final m = await EnvManager.init<_Env>(
+        defaultEnv: _Env.dev,
+        configs: _configs,
+        loader: _loader(_assets),
+        store: EnvStore(),
+        persistSelection: false,
+      );
+
+      await m.switchTo(_Env.staging);
+      expect(m.current, _Env.staging);
+
+      // Store must still be empty — no write happened.
+      final store = EnvStore();
+      expect(await store.load(), isNull);
+    });
   });
 
   group('EnvManager.instance', () {
@@ -236,6 +255,92 @@ void main() {
         store: EnvStore(),
       );
       expect(EnvManager.instance, isNotNull);
+    });
+  });
+
+  group('EnvManager persistSelection', () {
+    test('defaults to true — persists and restores selection', () async {
+      final m = await EnvManager.init<_Env>(
+        defaultEnv: _Env.dev,
+        configs: _configs,
+        loader: _loader(_assets),
+        store: EnvStore(),
+      );
+
+      expect(m.persistSelection, isTrue);
+
+      await m.switchTo(_Env.staging);
+      expect(await EnvStore().load(), 'staging');
+    });
+
+    test('persistSelection: false clears store on init', () async {
+      // Pre-seed a stored value.
+      SharedPreferences.setMockInitialValues({
+        'envify_selected_env': 'staging',
+      });
+
+      final m = await EnvManager.init<_Env>(
+        defaultEnv: _Env.dev,
+        configs: _configs,
+        loader: _loader(_assets),
+        store: EnvStore(),
+        persistSelection: false,
+      );
+
+      // Store is cleared; always uses defaultEnv.
+      expect(m.current, _Env.dev);
+      expect(await EnvStore().load(), isNull);
+    });
+
+    test('persistSelection: false ignores persisted env', () async {
+      SharedPreferences.setMockInitialValues({
+        'envify_selected_env': 'production',
+      });
+
+      final m = await EnvManager.init<_Env>(
+        defaultEnv: _Env.dev,
+        configs: _configs,
+        loader: _loader(_assets),
+        store: EnvStore(),
+        persistSelection: false,
+      );
+
+      expect(m.current, _Env.dev);
+    });
+
+    test('setPersistSelection(false) clears the store', () async {
+      final m = await EnvManager.init<_Env>(
+        defaultEnv: _Env.dev,
+        configs: _configs,
+        loader: _loader(_assets),
+        store: EnvStore(),
+      );
+
+      await m.switchTo(_Env.staging);
+      expect(await EnvStore().load(), 'staging');
+
+      await m.setPersistSelection(false);
+      expect(m.persistSelection, isFalse);
+      expect(await EnvStore().load(), isNull);
+    });
+
+    test('setPersistSelection(true) saves current env immediately', () async {
+      final m = await EnvManager.init<_Env>(
+        defaultEnv: _Env.dev,
+        configs: _configs,
+        loader: _loader(_assets),
+        store: EnvStore(),
+        persistSelection: false,
+      );
+
+      // Switch in-session (not saved).
+      await m.switchTo(_Env.production);
+      expect(await EnvStore().load(), isNull);
+
+      // Enable persist — current env must be saved right away.
+      await m.setPersistSelection(true);
+      expect(m.persistSelection, isTrue);
+      expect(await EnvStore().load(), 'production');
     });
   });
 

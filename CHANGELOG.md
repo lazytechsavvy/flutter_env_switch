@@ -1,3 +1,17 @@
+## 1.1.5
+
+* **`persistSelection`** — new `bool` parameter on `Env.init` and
+  `EnvManager.init` (default `true`). When `false`, the app always starts
+  from `defaultEnv` on each launch and switches are not written to
+  `SharedPreferences`. Existing callers are unaffected.
+* **`Env.persistSelection` / `EnvManager.persistSelection`** — getter
+  exposing the current persist mode.
+* **`Env.setPersistSelection(bool)` / `EnvManager.setPersistSelection(bool)`**
+  — method to change the persist mode at runtime. Turning off clears the
+  store; turning on immediately saves the current environment.
+* **Debug panel "Persist env selection" toggle** — new `SwitchListTile` in
+  the debug panel lets testers flip the persist mode without touching code.
+
 ## 1.1.4
 
 * **`AppRestarter.onRestart`** — new optional `Future<void> Function()?` callback

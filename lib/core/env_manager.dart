@@ -18,10 +18,12 @@ class EnvManager<E extends Enum> {
     required Map<E, Map<String, String>> envs,
     required List<E> allEnumValues,
     required Set<E> lockedEnvironments,
+    required bool persistSelection,
   })  : _store = store,
         _envs = envs,
         _allEnumValues = allEnumValues,
         _lockedEnvironments = lockedEnvironments,
+        _persistSelection = persistSelection,
         currentNotifier = ValueNotifier<E>(defaultEnv);
 
   // ---------------------------------------------------------------------------
@@ -53,11 +55,17 @@ class EnvManager<E extends Enum> {
   /// Initialises the singleton with [defaultEnv] and the [configs] map.
   ///
   /// Loads all `.env` asset files in parallel. If a previously persisted
-  /// selection exists, it is restored; otherwise [defaultEnv] is used.
+  /// selection exists and [persistSelection] is `true`, it is restored;
+  /// otherwise [defaultEnv] is used.
   ///
   /// [lockedEnvironments] is an optional set of environments from which
   /// switching is forbidden. When the active environment is in this set,
   /// `switchTo` throws `EnvSwitchLockedException`. Defaults to no lock.
+  ///
+  /// [persistSelection] controls whether the active environment is saved to
+  /// and restored from `SharedPreferences` across sessions. When `false`, the
+  /// store is cleared on init and switches are not written to the store.
+  /// Defaults to `true`.
   ///
   /// Throws `EnvLoadException` when any asset fails to load.
   /// Safe to call multiple times (subsequent calls replace the instance).
@@ -65,6 +73,7 @@ class EnvManager<E extends Enum> {
     required E defaultEnv,
     required Map<E, String> configs,
     Set<E>? lockedEnvironments,
+    bool persistSelection = true,
     EnvLoader? loader,
     EnvStore? store,
   }) async {
@@ -82,22 +91,31 @@ class EnvManager<E extends Enum> {
       envs[entries[i].key] = results[i];
     }
 
-    // Attempt to restore a previously persisted selection.
-    final savedName = await resolvedStore.load();
     final allEnumValues = configs.keys.toList();
-    final restoredEnv = savedName != null
-        ? allEnumValues.cast<E?>().firstWhere(
-              (e) => e?.name == savedName,
-              orElse: () => null,
-            )
-        : null;
+    E startEnv = defaultEnv;
+
+    if (persistSelection) {
+      // Attempt to restore a previously persisted selection.
+      final savedName = await resolvedStore.load();
+      final restoredEnv = savedName != null
+          ? allEnumValues.cast<E?>().firstWhere(
+                (e) => e?.name == savedName,
+                orElse: () => null,
+              )
+          : null;
+      startEnv = restoredEnv ?? defaultEnv;
+    } else {
+      // Clear any leftover state so the store is always clean in session mode.
+      await resolvedStore.clear();
+    }
 
     final manager = EnvManager<E>._(
-      defaultEnv: restoredEnv ?? defaultEnv,
+      defaultEnv: startEnv,
       store: resolvedStore,
       envs: envs,
       allEnumValues: allEnumValues,
       lockedEnvironments: lockedEnvironments ?? const {},
+      persistSelection: persistSelection,
     );
 
     _instance = manager;
@@ -112,6 +130,7 @@ class EnvManager<E extends Enum> {
   final Map<E, Map<String, String>> _envs;
   final List<E> _allEnumValues;
   final Set<E> _lockedEnvironments;
+  bool _persistSelection;
 
   /// A [ValueNotifier] that broadcasts the currently active [E] whenever the
   /// environment is switched. Useful for reactive UI updates.
@@ -128,6 +147,13 @@ class EnvManager<E extends Enum> {
   /// When `true`, any call to [switchTo] will throw
   /// `EnvSwitchLockedException`.
   bool get isCurrentLocked => _lockedEnvironments.contains(current);
+
+  /// Whether the active environment is saved to and restored from
+  /// `SharedPreferences` across sessions.
+  ///
+  /// When `false`, switches are not written to the store and the next launch
+  /// always starts from `defaultEnv`.
+  bool get persistSelection => _persistSelection;
 
   /// All key/value pairs loaded for the current environment.
   ///
@@ -191,10 +217,13 @@ class EnvManager<E extends Enum> {
   // Switching
   // ---------------------------------------------------------------------------
 
-  /// Switches the active environment to [env] and persists the selection.
+  /// Switches the active environment to [env].
   ///
-  /// Notifies [currentNotifier] listeners synchronously after persisting.
-  /// Returns a [Future] that completes once persistence is confirmed.
+  /// When [persistSelection] is `true`, the new selection is written to
+  /// `SharedPreferences`. When `false`, the switch is in-session only.
+  ///
+  /// Notifies [currentNotifier] listeners after persisting (or immediately
+  /// when not persisting).
   ///
   /// Throws `EnvSwitchLockedException` when the current environment is locked
   /// (i.e. it was included in `lockedEnvironments` during [init]).
@@ -213,8 +242,23 @@ class EnvManager<E extends Enum> {
         'Must be one of: ${_allEnumValues.map((e) => e.name).join(', ')}.',
       );
     }
-    await _store.save(env.name);
+    if (_persistSelection) await _store.save(env.name);
     currentNotifier.value = env;
+  }
+
+  /// Changes the persist mode at runtime.
+  ///
+  /// - Setting to `true`: saves the **current** environment immediately so
+  ///   the next launch restores it.
+  /// - Setting to `false`: clears the stored selection so the next launch
+  ///   always starts from `defaultEnv`; future switches are not saved.
+  Future<void> setPersistSelection(bool persist) async {
+    _persistSelection = persist;
+    if (persist) {
+      await _store.save(current.name);
+    } else {
+      await _store.clear();
+    }
   }
 
   // ---------------------------------------------------------------------------

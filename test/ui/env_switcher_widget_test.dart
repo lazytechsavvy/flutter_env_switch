@@ -463,6 +463,71 @@ void main() {
 
       expect(find.text('BASE_URL'), findsOneWidget);
     });
+
+    testWidgets(
+        'persist env selection toggle is visible and reflects current state',
+        (tester) async {
+      await _initManager();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showEnvDebugPanel<_Env>(
+                  context,
+                  showRestartToggle: false,
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Toggle is visible and ON by default.
+      expect(find.text('Persist env selection'), findsOneWidget);
+      expect(find.text('Selection is saved across sessions'), findsOneWidget);
+    });
+
+    testWidgets(
+        'turning off persist toggle clears store and updates subtitle',
+        (tester) async {
+      await _initManager();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showEnvDebugPanel<_Env>(
+                  context,
+                  showRestartToggle: false,
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // Tap the toggle to turn off persistence.
+      await tester.tap(find.text('Persist env selection'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Selection resets to default on each launch'),
+        findsOneWidget,
+      );
+      // Manager state updated.
+      expect(EnvManager.instance.persistSelection, isFalse);
+    });
   });
 
   group('EnvSwitcher tap-count mode', () {

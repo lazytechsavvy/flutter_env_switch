@@ -48,6 +48,7 @@ class _EnvDebugPanelState<E extends Enum>
   late final EnvManager<E> _manager;
   bool _restartAfterSwitch = true;
   bool _showKeyBrowser = false;
+  late final ValueNotifier<bool> _persistNotifier;
 
   // Keys whose values are masked by default.
   static const _sensitivePatterns = [
@@ -68,6 +69,13 @@ class _EnvDebugPanelState<E extends Enum>
   void initState() {
     super.initState();
     _manager = EnvManager.instanceOf<E>();
+    _persistNotifier = ValueNotifier<bool>(_manager.persistSelection);
+  }
+
+  @override
+  void dispose() {
+    _persistNotifier.dispose();
+    super.dispose();
   }
 
   bool _isSensitive(String key) {
@@ -263,6 +271,26 @@ class _EnvDebugPanelState<E extends Enum>
                 onChanged: (v) => setState(() => _restartAfterSwitch = v),
               ),
             ],
+            // ── Persist selection ──────────────────────────────────────────
+            const Divider(height: 1),
+            ValueListenableBuilder<bool>(
+              valueListenable: _persistNotifier,
+              builder: (ctx, persist, _) => SwitchListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20),
+                title: const Text('Persist env selection'),
+                subtitle: Text(
+                  persist
+                      ? 'Selection is saved across sessions'
+                      : 'Selection resets to default on each launch',
+                ),
+                value: persist,
+                onChanged: (v) async {
+                  await _manager.setPersistSelection(v);
+                  _persistNotifier.value = v;
+                },
+              ),
+            ),
             // ── Key browser ──────────────────────────────────────────────────
             const Divider(height: 1),
             _KeyBrowserTile(
