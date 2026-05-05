@@ -18,9 +18,12 @@
 ///   `EnvNotInitializedException`, `EnvSwitchLockedException` — typed
 ///   exceptions thrown by the accessors and init.
 /// - `AppRestarter` — `StatefulWidget` enabling soft app restart via a new
-///   `UniqueKey`. Place at the widget-tree root.
+///   `UniqueKey`. Accepts an optional `onRestart` async callback fired before
+///   the tree rebuilds, and a `builder` alternative to `child` for dynamic
+///   subtree re-creation on restart.
 /// - `EnvSwitcher` — wraps its child with a gesture that opens the debug
-///   panel. Automatically disabled in release mode.
+///   panel. Controlled by `enabled` and `enableInRelease` (both default
+///   `true`); set `enableInRelease: false` to restrict to debug/profile only.
 /// - `EnvTriggerMode` — choose between `longPress` and `tapCount` gestures.
 /// - `EnvBadge` — persistent on-screen badge showing the active environment.
 /// - `showEnvDebugPanel` — shows the environment switcher bottom sheet

@@ -124,6 +124,70 @@ void main() {
       await tester.tap(find.text('Restart'));
       await tester.pump();
     });
+
+    testWidgets(
+        'onRestart callback fires before tree rebuilds',
+        (tester) async {
+      await _initManager();
+
+      final log = <String>[];
+
+      await tester.pumpWidget(
+        AppRestarter(
+          onRestart: () async => log.add('onRestart'),
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) {
+                log.add('build');
+                return TextButton(
+                  onPressed: () => AppRestarter.restart(context),
+                  child: const Text('Restart'),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      // Clear the initial build entries.
+      log.clear();
+
+      await tester.tap(find.text('Restart'));
+      await tester.pumpAndSettle();
+
+      // onRestart must appear before the subsequent build call.
+      expect(log.first, 'onRestart');
+      expect(log, contains('build'));
+    });
+
+    testWidgets('builder is re-evaluated on each restart', (tester) async {
+      await _initManager();
+
+      var builderCallCount = 0;
+
+      await tester.pumpWidget(
+        AppRestarter(
+          builder: (ctx) {
+            builderCallCount++;
+            return MaterialApp(
+              home: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => AppRestarter.restart(context),
+                  child: const Text('Restart'),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+
+      final countAfterFirstBuild = builderCallCount;
+
+      await tester.tap(find.text('Restart'));
+      await tester.pumpAndSettle();
+
+      expect(builderCallCount, greaterThan(countAfterFirstBuild));
+    });
   });
 
   group('EnvSwitcher', () {
@@ -155,11 +219,36 @@ void main() {
         MaterialApp(
           home: const Scaffold(
             body: EnvSwitcher<_Env>(
-              // Force-enable even in test (kReleaseMode is false in tests).
-              enabled: true,
               child: SizedBox.expand(
                 child: Text('App'),
               ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.longPress(find.text('App'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Environment'), findsOneWidget);
+    });
+
+    testWidgets(
+        'enableInRelease: false still opens panel in non-release test env',
+        (tester) async {
+      // kReleaseMode is always false in tests, so the panel must open when
+      // enableInRelease=false — the release guard is irrelevant here.
+      await _initManager();
+
+      await tester.pumpWidget(
+        // MaterialApp cannot be const — wraps non-const EnvSwitcher.
+        // ignore: prefer_const_constructors
+        MaterialApp(
+          home: const Scaffold(
+            body: EnvSwitcher<_Env>(
+              enableInRelease: false, // restrict to debug/profile — irrelevant
+              //                        in tests because kReleaseMode == false.
+              child: SizedBox.expand(child: Text('App')),
             ),
           ),
         ),
@@ -386,7 +475,6 @@ void main() {
         MaterialApp(
           home: const Scaffold(
             body: EnvSwitcher<_Env>(
-              enabled: true,
               triggerMode: EnvTriggerMode.tapCount,
               child: SizedBox.expand(child: Text('App')),
             ),
@@ -418,7 +506,6 @@ void main() {
         MaterialApp(
           home: const Scaffold(
             body: EnvSwitcher<_Env>(
-              enabled: true,
               triggerMode: EnvTriggerMode.tapCount,
               child: SizedBox.expand(child: Text('App')),
             ),
@@ -445,7 +532,6 @@ void main() {
               MaterialApp(
             home: Scaffold(
               body: EnvSwitcher<_Env>(
-                enabled: true,
                 showRestartToggle: false,
                 onSwitched: () => callCount++,
                 child: const SizedBox.expand(child: Text('App')),

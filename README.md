@@ -57,7 +57,7 @@ Most Flutter apps tie environment configuration to compile-time flags (`--dart-d
 | Reactive notifier | — | `addListener` | **`ValueNotifier`** |
 | Gesture trigger | widget toggle | multi-tap (configurable) | **both long-press and tap-count** |
 | On-switch callback | — | `onEnvironmentChanged` | **`onSwitched`** |
-| Release-mode guard | manual | `enabled` flag | **double-guard (compile + runtime)** |
+| Release-mode guard | manual | `enabled` flag | **configurable via `enableInRelease`** |
 | In-panel key browser | — | — | **YES — with sensitive-key masking** |
 | On-screen env badge | — | — | **`EnvBadge`** |
 
@@ -89,7 +89,7 @@ Add `flutter_env_switch` to your app's `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_env_switch: ^1.1.3
+  flutter_env_switch: ^1.1.4
 ```
 
 `shared_preferences` is a transitive dependency — no separate entry needed. `dio` is also included for the optional Dio interceptor.
@@ -166,8 +166,7 @@ Future<void> main() async {
     AppRestarter(
       child: EnvBadge<Environment>(        // ← shows active env name in corner
         child: EnvSwitcher<Environment>(
-          enabled: !kReleaseMode,          // panel is always off in release builds
-          child: const MyApp(),
+          child: const MyApp(),            // panel on by default in all modes
         ),
       ),
     ),
@@ -361,7 +360,8 @@ The debug panel is a modal bottom sheet that lists all registered environments, 
 runApp(
   AppRestarter(               // ← enables soft restart after switch
     child: EnvSwitcher<Environment>(
-      enabled: !kReleaseMode, // ← disables panel in production builds
+      // Panel is active by default in all build modes.
+      // Set enableInRelease: false to restrict to debug/profile only.
       child: const MyApp(),
     ),
   ),
@@ -392,7 +392,16 @@ showEnvDebugPanel<Environment>(context, showRestartToggle: false);
 
 ### Release mode
 
-`EnvSwitcher` always disables the gesture in release builds regardless of the `enabled` flag — the flag is an additional guard for debug/profile builds. There is no way to accidentally ship the switcher to end users.
+By default `EnvSwitcher` is active in **all** build modes (debug, profile, and release). To restrict it to debug and profile builds only, set `enableInRelease: false`:
+
+```dart
+EnvSwitcher<Environment>(
+  enableInRelease: false, // hidden in release builds
+  child: const MyApp(),
+)
+```
+
+To disable the gesture unconditionally (e.g. based on a remote config flag), set `enabled: false`.
 
 ### Locked state
 
@@ -636,7 +645,6 @@ Place `AppRestarter` **above** `MaterialApp` in the widget tree (ideally at the 
 runApp(
   AppRestarter(
     child: EnvSwitcher<Environment>(
-      enabled: !kReleaseMode,
       child: const MyApp(),
     ),
   ),
@@ -652,6 +660,45 @@ AppRestarter.restart(context);
 
 If no `AppRestarter` ancestor is found, the call is a **silent no-op** — safe to call unconditionally.
 
+### Re-initialising services on restart
+
+When you switch environments, services set up in `main()` before `runApp` (Sentry, Dio clients, routers) are **not** automatically re-created because `main()` does not re-run. Use the `onRestart` callback to re-initialise them. The new environment is already active when `onRestart` fires, so `Env.get(...)` returns the new values:
+
+```dart
+runApp(
+  AppRestarter(
+    onRestart: () async {
+      // New env values are active here — Env.get(...) already reflects the switch.
+      await Sentry.close();
+      await SentryFlutter.init(
+        options: SentryFlutterOptions()..dsn = Env.get('SENTRY_DSN'),
+      );
+    },
+    child: SentryWidget(child: MyApp()),
+  ),
+);
+```
+
+### Dynamic subtree re-creation with `builder`
+
+When a widget in the tree holds a reference to an object that must itself be re-created (e.g. a `GoRouter` instance), use `builder` instead of `child`. The builder is called fresh on every restart:
+
+```dart
+// Make router a global/static so onRestart can update it.
+GoRouter router = AppRouter.create();
+
+runApp(
+  AppRestarter(
+    onRestart: () async {
+      router = AppRouter.create(); // re-build with new env values
+    },
+    builder: (ctx) => MyApp(router: router), // evaluated anew each restart
+  ),
+);
+```
+
+> `child` and `builder` are mutually exclusive — exactly one must be provided.
+
 ### When to use it
 
 | Scenario | Restart needed? |
@@ -659,7 +706,7 @@ If no `AppRestarter` ancestor is found, the call is a **silent no-op** — safe 
 | Changing a feature flag read inside `build` | No — `ValueListenableBuilder` handles it |
 | Changing `BASE_URL` used by a Dio client built once in `initState` | **Yes** |
 | Changing the app theme driven by an env key | No — wrap `MaterialApp` with `ValueListenableBuilder` |
-| Changing any config that is read in `main()` | **Yes** |
+| Changing any config that is read in `main()` | **Yes — use `onRestart`** |
 
 The debug panel's "restart after switch" toggle automates this for testers — they do not need to understand this distinction.
 
@@ -1007,9 +1054,9 @@ It is the environment selected on first launch (or after `SharedPreferences` is 
 **The debug panel does not appear. What should I check?**
 
 1. Confirm `EnvSwitcher` wraps the widget you are long-pressing.
-2. Confirm `enabled: !kReleaseMode` (or `enabled: true` in debug mode).
+2. Confirm `enabled` is `true` (default).
 3. Confirm `EnvSwitcher` is typed with your enum: `EnvSwitcher<Environment>`.
-4. The panel is **always disabled** in release mode — test in debug or profile.
+4. If you set `enableInRelease: false`, confirm you are running in debug or profile mode.
 
 ---
 
@@ -1119,6 +1166,8 @@ final json = jsonEncode(data); // for export/logging
 | Component | Description |
 |-----------|-------------|
 | `AppRestarter` | `StatefulWidget` — place at root to enable soft restarts |
+| `AppRestarter.onRestart` | `Future<void> Function()?` — async hook fired before rebuild; use for service re-init |
+| `AppRestarter.builder` | `WidgetBuilder?` — alternative to `child`; re-evaluated on every restart |
 | `AppRestarter.restart(context)` | Static method — triggers rebuild from root; no-op if no ancestor |
 | `EnvSwitcher<E>` | Wraps child with a gesture (long-press or tap-count) to open the debug panel |
 | `EnvTriggerMode` | Enum — `longPress` (default) or `tapCount` |
@@ -1130,7 +1179,8 @@ final json = jsonEncode(data); // for export/logging
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `child` | `Widget` | required | Widget to wrap |
-| `enabled` | `bool` | `!kReleaseMode` | Whether the gesture is active |
+| `enabled` | `bool` | `true` | Whether the gesture is active (set `false` to unconditionally disable) |
+| `enableInRelease` | `bool` | `true` | Allow panel in release builds; set `false` for debug/profile only |
 | `showRestartToggle` | `bool` | `true` | Show restart-after-switch toggle in panel |
 | `triggerMode` | `EnvTriggerMode` | `longPress` | Gesture type |
 | `tapCount` | `int` | `5` | Taps required (tapCount mode only) |

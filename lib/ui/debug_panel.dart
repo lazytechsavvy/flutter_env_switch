@@ -432,17 +432,81 @@ class _KeyBrowserTile extends StatelessWidget {
 /// ```dart
 /// AppRestarter.restart(context);
 /// ```
+///
+/// ### Re-initialising services on restart
+///
+/// Use [onRestart] to run async work (e.g. re-initialising Sentry or Dio)
+/// **before** the widget tree rebuilds. The new environment values are already
+/// active when [onRestart] fires, so calls to `Env.get(...)` return the
+/// switched config:
+///
+/// ```dart
+/// AppRestarter(
+///   onRestart: () async {
+///     await Sentry.close();
+///     await SentryFlutter.init(options: ..dsn = Env.get('SENTRY_DSN'));
+///   },
+///   child: SentryWidget(child: MyApp()),
+/// )
+/// ```
+///
+/// ### Dynamic child re-creation
+///
+/// When the widget itself (e.g. a `GoRouter`) must be rebuilt with a fresh
+/// reference on every restart, use [builder] instead of [child]. The builder
+/// is called anew each time a restart occurs:
+///
+/// ```dart
+/// AppRestarter(
+///   onRestart: () async => router = AppRouter.create(),
+///   builder: (ctx) => MyApp(router: router),
+/// )
+/// ```
+///
+/// Exactly one of [child] or [builder] must be provided.
 class AppRestarter extends StatefulWidget {
-  /// Creates an [AppRestarter].
-  const AppRestarter({super.key, required this.child});
+  /// Creates an [AppRestarter] with a static [child].
+  ///
+  /// Use [builder] instead when the subtree must be re-created from scratch
+  /// on every restart (e.g. when it holds references to re-created objects).
+  const AppRestarter({
+    super.key,
+    this.child,
+    this.builder,
+    this.onRestart,
+  }) : assert(
+          child != null || builder != null,
+          'AppRestarter requires either child or builder.',
+        );
 
-  /// The subtree that will be rebuilt on restart.
-  final Widget child;
+  /// The subtree to rebuild on restart.
+  ///
+  /// The same widget instance is re-used across restarts. Use [builder] if
+  /// a fresh widget instance is needed on each restart.
+  final Widget? child;
 
-  /// Triggers a full rebuild of the [AppRestarter] subtree.
+  /// A builder called on every restart to produce the subtree.
+  ///
+  /// Unlike [child], this is re-evaluated each time a restart is triggered,
+  /// allowing the caller to supply fresh object references (e.g. a newly
+  /// constructed router).
+  final WidgetBuilder? builder;
+
+  /// Optional async callback invoked **before** the widget tree rebuilds.
+  ///
+  /// The environment switch has already completed when this fires, so
+  /// `Env.get(...)` returns values from the new environment. Use this to
+  /// re-initialise services (Sentry, Dio clients, etc.) that were originally
+  /// set up in `main()`.
+  ///
+  /// The rebuild is deferred until this future completes.
+  final Future<void> Function()? onRestart;
+
+  /// Triggers a full rebuild of the nearest [AppRestarter] ancestor.
   ///
   /// Finds the nearest [AppRestarter] ancestor in the widget tree and forces
   /// it to rebuild with a new [UniqueKey], effectively restarting the subtree.
+  /// If [AppRestarter.onRestart] is set, it is awaited before the rebuild.
   ///
   /// If no [AppRestarter] ancestor is found, this call is a **no-op**.
   /// Ensure [AppRestarter] is placed above the widget calling this method
@@ -458,12 +522,24 @@ class AppRestarter extends StatefulWidget {
 class _AppRestarterState extends State<AppRestarter> {
   Key _key = UniqueKey();
 
-  void restart() {
-    setState(() => _key = UniqueKey());
+  /// Fires the [AppRestarter.onRestart] hook (if any) then forces a rebuild.
+  ///
+  /// This is `void` so callers (including [AppRestarter.restart]) do not need
+  /// to await it — the async work runs fire-and-forget, and `setState` is only
+  /// called once it completes.
+  // ignore: discarded_futures
+  void restart() => _doRestart();
+
+  Future<void> _doRestart() async {
+    if (widget.onRestart != null) await widget.onRestart!();
+    if (mounted) setState(() => _key = UniqueKey());
   }
 
   @override
   Widget build(BuildContext context) {
-    return KeyedSubtree(key: _key, child: widget.child);
+    final content = widget.builder != null
+        ? Builder(builder: widget.builder!)
+        : widget.child!;
+    return KeyedSubtree(key: _key, child: content);
   }
 }

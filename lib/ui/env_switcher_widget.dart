@@ -21,9 +21,9 @@ enum EnvTriggerMode {
 
 /// Wraps [child] with a gesture that opens the envify debug panel.
 ///
-/// The panel is automatically disabled in release mode regardless of the
-/// [enabled] flag. Use [triggerMode] to choose between a long-press and a
-/// configurable rapid-tap gesture.
+/// The panel can be disabled entirely via [enabled], or restricted to
+/// non-release builds with [enableInRelease]. Use [triggerMode] to choose
+/// between a long-press and a configurable rapid-tap gesture.
 ///
 /// ### Long-press (default)
 /// ```dart
@@ -41,28 +41,46 @@ enum EnvTriggerMode {
 ///   child: const AppLogo(),
 /// )
 /// ```
+///
+/// ### Disable in release builds (opt-in lockdown)
+/// ```dart
+/// EnvSwitcher<Environment>(
+///   enableInRelease: false, // panel only shows in debug/profile
+///   child: const AppLogo(),
+/// )
+/// ```
 class EnvSwitcher<E extends Enum> extends StatelessWidget {
   /// Creates an [EnvSwitcher].
-  ///
-  /// [enabled] defaults to `!kReleaseMode`.
   const EnvSwitcher({
     super.key,
     required this.child,
-    bool? enabled,
+    this.enabled = true,
+    this.enableInRelease = true,
     this.showRestartToggle = true,
     this.triggerMode = EnvTriggerMode.longPress,
     this.tapCount = 5,
     this.tapWindowMs = 3000,
     this.onSwitched,
-  }) : enabled = enabled ?? !kReleaseMode;
+  });
 
   /// The widget tree to wrap.
   final Widget child;
 
   /// Whether the debug panel gesture is active.
   ///
-  /// Always `false` in release mode regardless of this value.
+  /// Set to `false` to unconditionally disable the gesture regardless of
+  /// build mode.
   final bool enabled;
+
+  /// Whether the debug panel gesture is active in release builds.
+  ///
+  /// Defaults to `true` — the panel is reachable in release mode. Set to
+  /// `false` to restrict the gesture to debug and profile builds only (the
+  /// behaviour of previous versions).
+  ///
+  /// When `false`, the effective guard is equivalent to `enabled &&
+  /// !kReleaseMode`.
+  final bool enableInRelease;
 
   /// Whether to show the restart-after-switch toggle in the debug panel.
   final bool showRestartToggle;
@@ -90,8 +108,7 @@ class EnvSwitcher<E extends Enum> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Double-guard: never enable in release mode.
-    final active = enabled && !kReleaseMode;
+    final active = enabled && (!kReleaseMode || enableInRelease);
 
     void openPanel() => showEnvDebugPanel<E>(
           context,

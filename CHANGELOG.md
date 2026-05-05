@@ -1,3 +1,21 @@
+## 1.1.4
+
+* **`AppRestarter.onRestart`** — new optional `Future<void> Function()?` callback
+  invoked **before** the widget tree rebuilds. Use it to re-initialise services
+  (Sentry, Dio, etc.) that were set up in `main()` and need to pick up the new
+  environment values.
+* **`AppRestarter.builder`** — new `WidgetBuilder?` alternative to `child`.
+  The builder is re-evaluated on every restart, allowing dynamic re-creation of
+  widgets that hold references to re-created objects (e.g. `GoRouter`).
+  Exactly one of `child` or `builder` must be provided.
+* **`EnvSwitcher.enableInRelease`** — new `bool` parameter (default `true`).
+  Controls whether the debug panel gesture is active in release builds.
+  Set to `false` to restrict the panel to debug/profile builds only (the
+  behaviour of prior versions).
+* **`EnvSwitcher.enabled`** default changed from `!kReleaseMode` to `true` —
+  the panel now works in release mode by default. Callers that need the old
+  behaviour should set `enableInRelease: false`.
+
 ## 1.1.3
 
 * Updated `CHANGELOG.md` to include entries for versions `1.1.2` and `1.1.3`.
